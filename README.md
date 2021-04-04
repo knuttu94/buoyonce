@@ -13,7 +13,8 @@ This repository holds the code for the Guidance, Navigation and Control (GNC) sy
 }
 ```
 
-The VRX simulator is found at https://github.com/osrf/vrx with detailed tutorials.
+The original VRX simulator is found at https://github.com/osrf/vrx with detailed tutorials. 
+New launch files and sensor configurations has been added and can be found at: https://github.com/knuttu94/vrx_simulator
 
 ## Requirements
 * Ubuntu 18.04
