@@ -7,6 +7,7 @@ from sensor_msgs.msg import NavSatFix, Imu
 from std_msgs.msg import String
 from geometry_msgs.msg import Vector3Stamped
 from tf.transformations import euler_from_quaternion
+from usv_state_machine.msg import HeadingControllerInput
 import pymap3d as pm
 import numpy as np
 
@@ -23,23 +24,9 @@ class HeadingController(object):
         Should get usv-states as input from one not, but uses raw sensor msgs as of now
     '''
     def __init__(self):
-        
-        #Dummy variables
-        self.lat0 = rospy.get_param("lat0")
-        self.lon0 = rospy.get_param("lon0")
-        self.alt0 = rospy.get_param("alt0")
-        self.lat_front = 0.0
-        self.lon_front = 0.0
-        self.alt_front = 0.0
-        self.lat_rear = 0.0
-        self.lon_rear = 0.0
-        self.alt_rear = 0.0
 
         #Subscribers
-        fix_rear_sub = rospy.Subscriber("fix_topic_rear", NavSatFix, self.fix_rear_callback)
-        fix_front_sub = rospy.Subscriber("fix_topic_front", NavSatFix, self.fix_front_callback)
-        imu_sub = rospy.Subscriber("imu_topic", Imu, self.imu_callback)
-        heading_sub = rospy.Subscriber("heading_topic", Vector3Stamped, self.imu_callback)
+        heading_sub = rospy.Subscriber("heading_controller_input", HeadingControllerInput, self.input_callback)
 
     
         #Nomoto model parameters
@@ -67,48 +54,20 @@ class HeadingController(object):
         self.r_dot_max = 1000
     
         rospy.loginfo("Heading controller initated")
-
-    def fix_front_callback(self, data):
-        lat = data.latitude
-        lon = data.longitude
-        alt = data.altitude
-        self.lat_front = data.latitude
-        self.lon_front = data.longitude
-        self.alt_front = data.altitude
     
-    def fix_rear_callback(self, data):
-        lat = data.latitude
-        lon = data.longitude
-        alt = data.altitude
-        self.lat_rear = data.latitude
-        self.lon_rear = data.longitude
-        self.alt_rear = data.altitude
-
-    def calculate_heading(self, gps_rear, gps_front):
-        lat1 = math.radians(gps_rear[0])
-        lat2 = math.radians(gps_front[0])
-
-        diffLong = math.radians(gps_front[1] - gps_rear[1])
-
-        x = math.sin(diffLong) * math.cos(lat2)
-        y = math.cos(lat1) * math.sin(lat2) - (math.sin(lat1)
-                * math.cos(lat2) * math.cos(diffLong))
-
-        initial_bearing = math.atan2(y, x)
-
-        initial_bearing = math.degrees(initial_bearing)
-        compass_bearing = (initial_bearing + 360) % 360
-
-        return initial_bearing
-
-    self.imu_callback(self, msg):
-        self.r = msg.angular_velocity.z 
+    def run(self, run_freq):
+        dt = rospy.Time.now()-self.prev_timestamp
+        self.prev_timestamp = rospy.Time.now()
+    
+    def input_callback(self, msg):
+        print(msg)
+        
 
 def main():
     # initiate node
     rospy.init_node('HeadingControllerNode',log_level=rospy.DEBUG)
-    rospy.loginfo("HeadingControllerNode initiated")
-    test = TestNode()
+    rospy.loginfo("HeadingControllerNode started")
+    heading_controller = HeadingController()
 
     while not rospy.is_shutdown():
         rospy.spin()

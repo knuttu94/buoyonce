@@ -12,4 +12,15 @@
         <remap from="vel_rear_topic" to="/$(arg namespace_test)/$(arg sensor_namespace)/gps/gps_rear/gps/fix_velocity"/>
         <remap from="ground_truth_topic" to="/wamv/sensors/position/p3d_wamv"/>
     </node>
+
+    <node pkg="control_system" type="heading_controller.py" name="heading_controller_node" output="screen">
+    </node>
+    <node pkg="usv_state_machine" type="state_machine.py" name="state_machine_node" output="screen">
+        <remap from="gps_front_topic" to="/$(arg namespace_test)/$(arg sensor_namespace)/gps/gps_front/fix"/>
+        <remap from="vel_front_topic" to="/$(arg namespace_test)/$(arg sensor_namespace)/gps/gps_front/fix_velocity"/>
+        <remap from="gps_rear_topic" to="/$(arg namespace_test)/$(arg sensor_namespace)/gps/gps_rear/fix"/>
+        <remap from="vel_rear_topic" to="/$(arg namespace_test)/$(arg sensor_namespace)/gps/gps_rear/gps/fix_velocity"/>
+        <remap from="ground_truth_topic" to="/wamv/sensors/position/p3d_wamv"/>
+        <remap from="imu_topic" to="/wamv/sensors/imu/imu/data"/>
+    </node>
 </launch>
