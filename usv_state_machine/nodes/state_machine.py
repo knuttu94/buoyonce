@@ -11,6 +11,7 @@ from tf.transformations import euler_from_quaternion
 import pymap3d as pm
 import numpy as np
 
+r2d = np.pi/180
 
 class StateMachine(object):
     def __init__(self):
@@ -60,7 +61,7 @@ class StateMachine(object):
         self.states.eta[1] = self.pos_front_ned[1]
         self.states.eta[2] = heading
         msg = HeadingControllerInput()
-        msg.yaw_d = 45
+        msg.yaw_d = 45*r2d
         msg.yaw = self.states.eta[2]
         msg.r = self.states.nu[2]
         self.heading_controller_pub.publish(msg)
