@@ -4,7 +4,7 @@ import math
 import string
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import NavSatFix, Imu
-from std_msgs.msg import String
+from std_msgs.msg import String, Float64
 from geometry_msgs.msg import Vector3Stamped
 from tf.transformations import euler_from_quaternion
 from usv_state_machine.msg import HeadingControllerInput
@@ -28,8 +28,8 @@ class HeadingController(object):
     def __init__(self):
 
         #Subscribers
-        reference_sub = rospy.Subscriber("heading_controller_input", HeadingControllerInput, self.input_callback)
-        tau_pub = rospy.Publisher("heading_controller_output", Float64)
+        self.reference_sub = rospy.Subscriber("heading_controller_input", HeadingControllerInput, self.input_callback)
+        self.tau_pub       = rospy.Publisher("heading_controller_output", Float64)
     
         #Nomoto model parameters
         T = 1
@@ -48,12 +48,12 @@ class HeadingController(object):
         self.K_i = omega_n*self.K_p/10.0
         self.K_d = (2*zeta*omega_n*m-d)
 
-        #Discrete matrices
+        #Discretization matrices
         a = -(2*zeta + 1)*omega_n
         b = a*omega_n
         c = omega_n**3
 
-        self.A_d = np.matrix([
+        self.A_d = np.array([
             [0, 1, 0],
             [0, 0, 1],
             [c, b, a]
@@ -62,7 +62,7 @@ class HeadingController(object):
             [0, 0, -c],
         ])
 
-        self.x_d = np.array([0,0,0]) #empty state vector x = [psi_d, r_d, r_dot_d]
+        self.x_d = np.array([0,0,0]).reshape(3,1) #empty state vector, x = [psi_d, r_d, r_dot_d]^T
 
         #Saturation elements
         self.r_max = 0.5 #[rad/sec]
@@ -73,28 +73,39 @@ class HeadingController(object):
 
     
     def input_callback(self, msg):
-        dt = rospy.Time.now() - self.prev_timestamp
-        psi_tilde = msg.yaw_d - msg.yaw
-        if(abs(msg.r) > self.r_max):
-            print("hei")
-        tau_fb = -(self.K_p*psi_tilde + self.K_i*psi_tilde*dt + self.K_d*psi_tilde/dt)
-        return tau_fb
+        dt                  = (rospy.Time.now() - self.prev_timestamp).to_sec()
+        self.prev_timestamp = rospy.Time.now()
+        x_d                 = self.reference_filter(msg.psi_r)
+        psi_tilde           = self.normalize_angle((x_d[0,0] - msg.psi))
+        r_tilde             = x_d[1,0] - msg.r
+        tau_fb              = -(self.K_p*psi_tilde + self.K_i*psi_tilde*dt + self.K_d*r_tilde)
+    
 
-    def reference_filter(self, psi_ref):
+        output      = Float64()
+        output.data = tau_fb
+        self.tau_pub.publish(output) 
+
+    def reference_filter(self, psi_r):
         # Reference filter according to Fossen 2011, p 378
         timestep = 0.1
         x_d_prev = self.x_d
-        if(x_d_prev[1] > abs(self.r_max)):
-            x_d_prev[1] = np.sign(x_d_prev[1])*self.r_max
-            x_d_prev[2] = 0
+        if(x_d_prev[1,0] > abs(self.r_max)):
+            x_d_prev[1,0] = np.sign(x_d_prev[1])*self.r_max
+            x_d_prev[2,0] = 0
 
-        if(x_d_prev[2] > abs(self.r_dot_max)):
-            x_d_prev[2] = np.sign(x_d_prev[2])*self.r_max
+        if(x_d_prev[2,0] > abs(self.r_dot_max)):
+            x_d_prev[2,0] = np.sign(x_d_prev[2])*self.r_max
 
         #Euler integration x_k+1 = x_k + h*x_dot_k
-        self.x_d = x_d_prev + timestep*(self.A_d*x_d_prev + self.B_d*psi_ref)
+        self.x_d = x_d_prev + timestep*(self.A_d.dot(x_d_prev) + self.B_d*psi_r)
         return self.x_d
 
+    def normalize_angle(self, angle):
+        while angle > np.pi:
+            angle -= 2*np.pi
+        while angle < -np.pi:
+            angle += 2*np.pi
+        return angle
         
 
 def main():
